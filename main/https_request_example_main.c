@@ -85,7 +85,7 @@ extern const uint8_t server_root_cert_pem_end[]   asm("_binary_server_root_cert_
 
 static void https_get_request(esp_tls_cfg_t cfg, const char *WEB_SERVER_URL, const char *REQUEST)
 {
-    unsigned char buf[4096];
+    unsigned char buf[8192];
     int ret, len, more;
     http_response_t res;
 
