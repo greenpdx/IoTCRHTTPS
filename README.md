@@ -4,28 +4,28 @@ IoT local HTTPS development using the Computado Rita
 
 ## Need to do;
 
-Create a PKI certificate authority
-How to create a WiFi Access Poing (Hotspot)
-Install and configure to create a https web server and time server
-Install esp-idf a ESP32 deveopment system
-Setup ESP32 to connect to Wifi
-Setup ESP32 to connect to https server
+Create a PKI certificate authority<br>
+How to create a WiFi Access Poing (Hotspot)<br>
+Install and configure to create a https web server and time server<br>
+Install esp-idf a ESP32 deveopment system<br>
+Setup ESP32 to connect to Wifi<br>
+Setup ESP32 to connect to https server<br>
 
 ## Equipment
 
-Computado Rita as server ; RAM 4G or 8G
-Seeed Xiao ESP32C3 or just change the configurations other ESP32,
-USB-A to USB-C cable
+Computado Rita as server ; RAM 4G or 8G<br>
+Seeed Xiao ESP32C3 or just change the configurations other ESP32,<br>
+USB-A to USB-C cable<br>
 
 ## The steps are, after CR installed
 
-Setup Access Point (hotspot) on the Computado Rita, force to use WPA2
-Install nginx web server, time server
-Create and install root CA and crypto for SSL web server
-Install esp-idf
-Clone IoTCRHTTPS, https://github.com/greenpdx/IoTCRHTTPS
-Copy root CA to project
-Build, flash and run (monitor)  IoTCRHTTPS
+Setup Access Point (hotspot) on the Computado Rita, force to use WPA2<br>
+Install nginx web server, time server<br>
+Create and install root CA and crypto for SSL web server<br>
+Install esp-idf<br>
+Clone IoTCRHTTPS, https://github.com/greenpdx/IoTCRHTTPS<br>
+Copy root CA to project<br>
+Build, flash and run (monitor)  IoTCRHTTPS<br>
 
 ## Goal
 
