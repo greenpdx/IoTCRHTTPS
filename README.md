@@ -33,4 +33,4 @@ To have the IoT device read a URL from the CR web server over WiFi.
 
 There are many HowTos on installing and using Arduino IDE, but the Arduino IDE doesn’t give the developer the power needed to make a advance IoT applications.  This HowTo uses esp-idf to develop a Wifi connected application to the Computado Rita. The Seeed Xiao ESP32C31 is good choice of processor because of the many features it uses and is Arduino compatiable.  The ESP32C32 has Wifi, BlueTooth, I2C, SPI and serial.
 
-Started with the https_request example from the esp-idf repository.  ( examples/protocols/https_request). Because this is a closed IoT network, I wanted to isolate it from the internet for security. This means the RPi needs to handle all network services for the IoT network.
+Started with the https_request example from the esp-idf repository.  ( examples/protocols/https_request). Because this is a closed IoT network, I wanted to isolate it from the internet for security. This means the Computado Rita needs to handle all network services for the IoT network.
