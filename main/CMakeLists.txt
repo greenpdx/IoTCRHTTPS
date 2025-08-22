@@ -3,6 +3,6 @@
 # (If this was a component, we would set COMPONENT_EMBED_TXTFILES here.)
 idf_component_register(SRCS "https_request_example_main.c" "time_sync.c"
                     INCLUDE_DIRS "include"
-                    PRIV_REQUIRES esp-tls esp_wifi esp_timer nvs_flash my_http_parser
+                    PRIV_REQUIRES esp-tls esp_wifi esp_timer nvs_flash json my_http_parser
                     EMBED_TXTFILES server_root_cert.pem
                     )

@@ -44,19 +44,16 @@
 #include "esp_crt_bundle.h"
 #endif
 #include "time_sync.h"
+#include "cJSON.h"
 
 #include "http_parser.h"
 
 /* Constants that aren't configurable in menuconfig */
-#ifdef CONFIG_EXAMPLE_SSL_PROTO_TLS1_3_CLIENT
-#define WEB_SERVER "tls13.browserleaks.com"
-#define WEB_PORT "443"
-#define WEB_URL "https://tls13.browserleaks.com/tls"
-#else
+
 #define WEB_SERVER "local"
 #define WEB_PORT "443"
 #define WEB_URL "https://10.42.0.1"
-#endif
+#define POST_URL "https://10.42.0.1/echo"
 
 #define SERVER_URL_MAX_SZ 256
 
@@ -65,10 +62,15 @@ static const char *TAG = "example";
 /* Timer interval once every day (24 Hours) */
 #define TIME_PERIOD (86400000000ULL)
 
-static const char HOWSMYSSL_REQUEST[] = "GET " WEB_URL " HTTP/1.1\r\n"
-                             "Host: "WEB_SERVER"\r\n"
+//method, URL, Host, content size, data
+static const char REQUEST[] = "%s %s HTTP/1.1\r\n"
+                             "Host: %s\r\n"
                              "User-Agent: esp-idf/1.0 esp32\r\n"
-                             "\r\n";
+                             "Connection: close\r\n"
+                             "Content-Type: application/json\r\n"
+                             "Content-Length: %u\r\n"
+                             "\r\n"
+                             "%s";
 
 /* Root cert for howsmyssl.com, taken from server_root_cert.pem
 
@@ -83,9 +85,17 @@ static const char HOWSMYSSL_REQUEST[] = "GET " WEB_URL " HTTP/1.1\r\n"
 extern const uint8_t server_root_cert_pem_start[] asm("_binary_server_root_cert_pem_start");
 extern const uint8_t server_root_cert_pem_end[]   asm("_binary_server_root_cert_pem_end");
 
-static void https_get_request(esp_tls_cfg_t cfg, const char *WEB_SERVER_URL, const char *REQUEST)
+static int build_request(const char *format, unsigned char * buf, const char *method, char *url, const char *data) {
+    int ret = sprintf((char *)buf, format, method, url, WEB_SERVER, strlen(data), data);
+    ESP_LOGI(TAG, "%u, %s", ret, buf);
+    return ret;
+
+}
+
+static void https_request(esp_tls_cfg_t cfg, char *url, const char *REQUEST, char* data)
 {
     unsigned char buf[8192];
+    char *method = "GET";
     int ret, len, more;
     http_response_t res;
 
@@ -96,8 +106,13 @@ static void https_get_request(esp_tls_cfg_t cfg, const char *WEB_SERVER_URL, con
     }
 
     cfg.common_name = "local";
+    if (strlen(data) > 0) {
+        method = "POST";
+    }
 
-    if (esp_tls_conn_http_new_sync(WEB_SERVER_URL, &cfg, tls) == 1) {
+    ret = build_request(REQUEST, buf, method, url, data);
+
+    if (esp_tls_conn_http_new_sync(url, &cfg, tls) == 1) {
         ESP_LOGI(TAG, "Connection established...");
     } else {
         ESP_LOGE(TAG, "Connection failed...");
@@ -115,8 +130,8 @@ static void https_get_request(esp_tls_cfg_t cfg, const char *WEB_SERVER_URL, con
     size_t written_bytes = 0;
     do {
         ret = esp_tls_conn_write(tls,
-                                 REQUEST + written_bytes,
-                                 strlen(REQUEST) - written_bytes);
+                                 buf + written_bytes,
+                                 strlen((char*)buf) - written_bytes);
         if (ret >= 0) {
             ESP_LOGI(TAG, "%d bytes written", ret);
             written_bytes += ret;
@@ -133,6 +148,7 @@ static void https_get_request(esp_tls_cfg_t cfg, const char *WEB_SERVER_URL, con
         //len = sizeof(buf) - 1;
         //memset(buf, 0x00, sizeof(buf));
         ret = esp_tls_conn_read(tls, (char *)buf, len);
+        ESP_LOGI(TAG, "TOTAL %s ", buf);
 
         if (ret == ESP_TLS_ERR_SSL_WANT_WRITE  || ret == ESP_TLS_ERR_SSL_WANT_READ) {
             continue;
@@ -145,38 +161,70 @@ static void https_get_request(esp_tls_cfg_t cfg, const char *WEB_SERVER_URL, con
         }
 
         len = len - ret;
-        ESP_LOGD(TAG, "%d bytes read", ret);
+        ESP_LOGI(TAG, "%d bytes read", ret);
 
         more = esp_tls_get_bytes_avail(tls);
         if ( more > 0) continue;
 
         httpParseResponse(buf, &res);
+        ESP_LOGI(TAG, "\t %i", res.num_headers);
+        for (int i =0; i < res.num_headers; i++) {
+            headers_kv_t * header = &res.headers[i];
+                ESP_LOGI(TAG, "\t %s: %s", header->key, header->value);
+
+        }
+
         unsigned char * ptr = httpGetResponseBody(&res);
 
-        /* Print response directly to stdout as it is read */
-        for (int i = 0; i < len; i++) {
-            putchar(ptr[i]);
+        if (ptr == NULL) {
+            ESP_LOGI(TAG,"Bad Response");
+            break;
         }
-        putchar('\n'); // JSON output doesn't have a newline at end
+        cJSON * json = cJSON_Parse((char *)ptr);
+        if (json == NULL) {
+            /* Print response directly to stdout as it is read */
+            for (int i = 0; i < len; i++) {
+                putchar(ptr[i]);
+            }
+            putchar('\n'); // JSON output doesn't have a newline at end
+        } else {
+                ESP_LOGI(TAG,"\n%s", cJSON_Print(json));
+            cJSON_Delete(json);
+        }
+
+        //ESP_LOGD(TAG, "STRING %s", ptr);
+        
     } while (1);
 
 cleanup:
     esp_tls_conn_destroy(tls);
 exit:
-    for (int countdown = 10; countdown >= 0; countdown--) {
-        ESP_LOGI(TAG, "%d...", countdown);
-        vTaskDelay(1000 / portTICK_PERIOD_MS);
-    }
+   
 }
 
-static void https_get_request_using_cacert_buf(void)
+static void https_request_using_cacert_buf(void)
 {
     ESP_LOGI(TAG, "https_request using cacert_buf");
     esp_tls_cfg_t cfg = {
         .cacert_buf = (const unsigned char *) server_root_cert_pem_start,
         .cacert_bytes = (unsigned int) server_root_cert_pem_end - (unsigned int)server_root_cert_pem_start,
     };
-    https_get_request(cfg, WEB_URL, HOWSMYSSL_REQUEST);
+    https_request(cfg, WEB_URL, REQUEST, "");
+
+    cJSON *monitor = cJSON_CreateObject();
+
+    if (cJSON_AddStringToObject(monitor, "name", "Awesome 4K") == NULL) {
+        ;
+    }
+    char * string = cJSON_PrintUnformatted(monitor);
+    https_request(cfg, POST_URL, REQUEST, string);
+    cJSON_Delete(monitor);
+    free(string);
+
+     for (int countdown = 10; countdown >= 0; countdown--) {
+        ESP_LOGI(TAG, "%d...", countdown);
+        vTaskDelay(1000 / portTICK_PERIOD_MS);
+    }
 }
 
 static void https_request_task(void *pvparameters)
@@ -184,7 +232,7 @@ static void https_request_task(void *pvparameters)
     ESP_LOGI(TAG, "Start https_request example");
 
     ESP_LOGI(TAG, "Minimum free heap size: %" PRIu32 " bytes", esp_get_minimum_free_heap_size());
-    https_get_request_using_cacert_buf();
+    https_request_using_cacert_buf();
     ESP_LOGI(TAG, "Finish https_request example");
     vTaskDelete(NULL);
 }
