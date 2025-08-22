@@ -46,7 +46,7 @@
 #include "time_sync.h"
 #include "cJSON.h"
 
-#include "http_parser.h"
+#include "picohttpparser.h"
 
 /* Constants that aren't configurable in menuconfig */
 
@@ -94,10 +94,14 @@ static int build_request(const char *format, unsigned char * buf, const char *me
 
 static void https_request(esp_tls_cfg_t cfg, char *url, const char *REQUEST, char* data)
 {
-    unsigned char buf[8192];
+    unsigned char buf[8192], *msg;
+    int minor_version, status;
+    struct phr_header headers[100];
+    size_t buflen = 0, prevbuflen = 0,  msg_len, last_len = 0, num_headers;
+
     char *method = "GET";
     int ret, len, more;
-    http_response_t res;
+    // http_response_t res;
 
     esp_tls_t *tls = esp_tls_init();
     if (!tls) {
@@ -148,7 +152,7 @@ static void https_request(esp_tls_cfg_t cfg, char *url, const char *REQUEST, cha
         //len = sizeof(buf) - 1;
         //memset(buf, 0x00, sizeof(buf));
         ret = esp_tls_conn_read(tls, (char *)buf, len);
-        ESP_LOGI(TAG, "TOTAL %s ", buf);
+        ESP_LOGD(TAG, "TOTAL %s ", buf);
 
         if (ret == ESP_TLS_ERR_SSL_WANT_WRITE  || ret == ESP_TLS_ERR_SSL_WANT_READ) {
             continue;
@@ -160,22 +164,35 @@ static void https_request(esp_tls_cfg_t cfg, char *url, const char *REQUEST, cha
             break;
         }
 
+        prevbuflen = buflen;
+        buflen = +ret;
+        num_headers = sizeof(headers) / sizeof(headers[0]);
+
         len = len - ret;
         ESP_LOGI(TAG, "%d bytes read", ret);
 
         more = esp_tls_get_bytes_avail(tls);
         if ( more > 0) continue;
 
-        httpParseResponse(buf, &res);
-        ESP_LOGI(TAG, "\t %i", res.num_headers);
-        for (int i =0; i < res.num_headers; i++) {
-            headers_kv_t * header = &res.headers[i];
-                ESP_LOGI(TAG, "\t %s: %s", header->key, header->value);
-
+        //httpParseResponse(buf, &res);
+        int pret = phr_parse_response((const char *)buf, buflen, &minor_version, &status, (const char **)&msg, &msg_len, 
+                                    headers, &num_headers, last_len);
+        ESP_LOGI(TAG, "%i", pret);
+        
+        if (pret > 0)
+            ; /* successfully parsed the request */
+        else if (pret == -1)
+            return;
+               
+        ESP_LOGI(TAG, "%i %i %.*s", minor_version, status, msg_len, msg);    
+        ESP_LOGI(TAG, "\t %i", num_headers);
+        for (int i =0; i < num_headers; i++) {
+            struct phr_header * header = &headers[i];
+                ESP_LOGI(TAG, "\t %.*s: %.*s", header-> name_len, header->name, header-> value_len, header->value);
         }
 
-        unsigned char * ptr = httpGetResponseBody(&res);
-
+        //unsigned char * ptr = httpGetResponseBody(&res);
+        char * ptr = (char *)buf + pret;
         if (ptr == NULL) {
             ESP_LOGI(TAG,"Bad Response");
             break;
