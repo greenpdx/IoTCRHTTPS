@@ -163,6 +163,7 @@ static int parseHeaders(int offset, unsigned char *req_raw, headers_kv_t *header
 	unsigned char *ptr = &req_raw[offset];
 	int prev_pos = 0;
 	int new_line_count = 0;
+	int eol = 0;
 
 	for (;;) {
 		offset++;
@@ -177,6 +178,16 @@ static int parseHeaders(int offset, unsigned char *req_raw, headers_kv_t *header
 			}
 
 			case '\n':
+				if ( eol ) {
+					new_line_count++;
+					eol = 0;
+					prev_pos = parseValue(req_raw, &ptr, headers, prev_pos, offset, num_headers);
+					part = KEY;
+					num_headers++;
+					
+				} else 
+					eol = 1;
+				break;
 			case '\r': {
 				new_line_count++;
 
