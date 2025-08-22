@@ -97,11 +97,10 @@ static void https_request(esp_tls_cfg_t cfg, char *url, const char *REQUEST, cha
     unsigned char buf[8192], *msg;
     int minor_version, status;
     struct phr_header headers[100];
-    size_t buflen = 0, prevbuflen = 0,  msg_len, last_len = 0, num_headers;
+    size_t buflen = 0,  msg_len, last_len = 0, num_headers;
 
     char *method = "GET";
     int ret, len, more;
-    // http_response_t res;
 
     esp_tls_t *tls = esp_tls_init();
     if (!tls) {
@@ -164,7 +163,6 @@ static void https_request(esp_tls_cfg_t cfg, char *url, const char *REQUEST, cha
             break;
         }
 
-        prevbuflen = buflen;
         buflen = +ret;
         num_headers = sizeof(headers) / sizeof(headers[0]);
 
@@ -174,7 +172,6 @@ static void https_request(esp_tls_cfg_t cfg, char *url, const char *REQUEST, cha
         more = esp_tls_get_bytes_avail(tls);
         if ( more > 0) continue;
 
-        //httpParseResponse(buf, &res);
         int pret = phr_parse_response((const char *)buf, buflen, &minor_version, &status, (const char **)&msg, &msg_len, 
                                     headers, &num_headers, last_len);
         ESP_LOGI(TAG, "%i", pret);
@@ -191,7 +188,6 @@ static void https_request(esp_tls_cfg_t cfg, char *url, const char *REQUEST, cha
                 ESP_LOGI(TAG, "\t %.*s: %.*s", header-> name_len, header->name, header-> value_len, header->value);
         }
 
-        //unsigned char * ptr = httpGetResponseBody(&res);
         char * ptr = (char *)buf + pret;
         if (ptr == NULL) {
             ESP_LOGI(TAG,"Bad Response");
