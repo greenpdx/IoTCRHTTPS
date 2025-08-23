@@ -36,18 +36,18 @@ There are many HowTos on installing and using Arduino IDE, but the Arduino IDE d
 Started with the https_request example from the esp-idf repository.  ( examples/protocols/https_request). Because this is a closed IoT network, I wanted to isolate it from the internet for security. This means the Computado Rita needs to handle all network services for the IoT network.
 
 ## Setup nginx to echo POST requests
-A POST request is a way for a client to send information to the web server. Usually there is a special web server program to accept POST data. Nginx has a echo module that we can use for testing a POST request. 
-First install the mod-http-echo module
- \$ sudo apt install nginx-extras
-This command install many different modules including the echo.
-Edit /etc/nginx/sites-enabled/default and add a POST echo location
-'''
-> location /echo {
->>	echo_read_request_body;
->>	echo_request_body;
->>	default_type application/json;
->>	chunked_transfer_encoding off;
->}
-'''
-Restart nginx
- \$ sudo systemctl restart nginx
+A POST request is a way for a client to send information to the web server. Usually there is a special web server program to accept POST data. Nginx has a echo module that we can use for testing a POST request.<br>
+First install the mod-http-echo module<br>
+``` $ sudo apt install nginx-extra```<br>
+This command install many different modules including the echo.<br>
+Edit /etc/nginx/sites-enabled/default and add a POST echo location<br>
+```
+ location /echo {
+    echo_read_request_body;
+    echo_request_body;
+    default_type application/json;
+    chunked_transfer_encoding off;
+ }
+```
+Restart nginx<br>
+``` $ sudo systemctl restart nginx```
