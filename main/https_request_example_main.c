@@ -145,6 +145,8 @@ static void https_request(esp_tls_cfg_t cfg, char *url, const char *REQUEST, cha
     } while (written_bytes < strlen(REQUEST));
 
     ESP_LOGI(TAG, "Reading HTTP response...");
+    char mime_type[100];
+
     len = sizeof(buf) - 1;
     memset(buf, 0x00, sizeof(buf));
     do {
@@ -174,18 +176,25 @@ static void https_request(esp_tls_cfg_t cfg, char *url, const char *REQUEST, cha
 
         int pret = phr_parse_response((const char *)buf, buflen, &minor_version, &status, (const char **)&msg, &msg_len, 
                                     headers, &num_headers, last_len);
-        ESP_LOGI(TAG, "%i", pret);
+        ESP_LOGD(TAG, "PRET %i", pret);
         
         if (pret > 0)
             ; /* successfully parsed the request */
         else if (pret == -1)
             return;
                
-        ESP_LOGI(TAG, "%i %i %.*s", minor_version, status, msg_len, msg);    
-        ESP_LOGI(TAG, "\t %i", num_headers);
+        ESP_LOGD(TAG, "%i %i %.*s", minor_version, status, msg_len, msg);    
+        ESP_LOGD(TAG, "\t %i", num_headers);
         for (int i =0; i < num_headers; i++) {
             struct phr_header * header = &headers[i];
-                ESP_LOGI(TAG, "\t %.*s: %.*s", header-> name_len, header->name, header-> value_len, header->value);
+                int rc = strncmp(header->name, "Content-Type", header->name_len);
+                if (rc == 0) {
+                    char * mime = strncpy(mime_type, header->value, header-> value_len);
+                    mime_type[header->value_len] = 0;
+                    ESP_LOGD(TAG, "CT %s", mime_type);
+                }
+
+                ESP_LOGD(TAG, "\t %.*s: %.*s", header-> name_len, header->name, header-> value_len, header->value);
         }
 
         char * ptr = (char *)buf + pret;
@@ -193,19 +202,33 @@ static void https_request(esp_tls_cfg_t cfg, char *url, const char *REQUEST, cha
             ESP_LOGI(TAG,"Bad Response");
             break;
         }
-        cJSON * json = cJSON_Parse((char *)ptr);
-        if (json == NULL) {
+
+        if (strcmp(mime_type, "application/json") == 0) {
+            cJSON * json = cJSON_Parse((char *)ptr);
+
+            if (json == NULL) {
+                const char *error_ptr = cJSON_GetErrorPtr();
+
+                if (error_ptr != NULL) {
+                    ESP_LOGI(TAG, "Error before: %s\n", error_ptr);
+                }
             /* Print response directly to stdout as it is read */
+                for (int i = 0; i < len; i++) {
+                    putchar(ptr[i]);
+                }
+                putchar('\n'); // JSON output doesn't have a newline at end
+                break;
+            }
+            ESP_LOGI(TAG,"\n%s", cJSON_Print(json));
+            cJSON_Delete(json);
+ 
+        }else {
             for (int i = 0; i < len; i++) {
                 putchar(ptr[i]);
             }
             putchar('\n'); // JSON output doesn't have a newline at end
-        } else {
-                ESP_LOGI(TAG,"\n%s", cJSON_Print(json));
-            cJSON_Delete(json);
         }
 
-        //ESP_LOGD(TAG, "STRING %s", ptr);
         
     } while (1);
 
