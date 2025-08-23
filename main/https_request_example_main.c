@@ -189,7 +189,7 @@ static void https_request(esp_tls_cfg_t cfg, char *url, const char *REQUEST, cha
             struct phr_header * header = &headers[i];
                 int rc = strncmp(header->name, "Content-Type", header->name_len);
                 if (rc == 0) {
-                    char * mime = strncpy(mime_type, header->value, header-> value_len);
+                    char * mime = strncpy(mime_type, header->value, header->value_len);
                     mime_type[header->value_len] = 0;
                     ESP_LOGD(TAG, "CT %s", mime_type);
                 }
