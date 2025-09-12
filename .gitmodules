@@ -1,3 +1,4 @@
 [submodule "components/picohttpparser"]
 	path = components/picohttpparser
 	url = https://github.com/greenpdx/picohttpparser.git
+	branch = master
